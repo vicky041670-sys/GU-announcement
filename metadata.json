@@ -1,0 +1,5 @@
+{
+  "name": "顧家醫療公告海報產生器",
+  "description": "專為顧家醫療設計的公告海報產生網頁，支援多國語言翻譯與自定義排版。",
+  "requestFramePermissions": []
+}
