@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-brown: #6d563c;
+  --color-brand-orange: #f18e2c;
+  --font-taipei: "Taipei Sans TC", "Noto Sans TC", sans-serif;
+  --font-avenir: "Avenir Next", "Avenir", "Inter", sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-brand-brown font-avenir;
+  }
+}
+
+/* Fallback for Taipei Sans if not installed on system */
+@font-face {
+  font-family: 'Taipei Sans TC';
+  src: url('https://cdn.jsdelivr.net/gh/googlefonts/noto-fonts@master/hinted/ttf/NotoSansTC/NotoSansTC-Regular.ttf');
+  font-display: swap;
+}
