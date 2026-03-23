@@ -53,7 +53,7 @@ type LayoutStyle = 'standard' | 'modern' | 'minimalist';
 type PosterSize = 'a4' | 'a3' | 'square';
 
 // Import local logos (Ensure logo3.png is uploaded to /src)
-const logo3 = "https://picsum.photos/seed/medical/200/80"; 
+import logo3 from './logo3.png';
 
 const LOGO_OPTIONS = [
   { 
