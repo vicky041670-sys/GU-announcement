@@ -53,7 +53,7 @@ type LayoutStyle = 'standard' | 'modern' | 'minimalist';
 type PosterSize = 'a4' | 'a3' | 'square';
 
 // Import local logos (Ensure logo3.png is uploaded to /src)
-import logo3 from './logo3.png';
+const logo3 = "https://picsum.photos/seed/medical/200/80"; 
 
 const LOGO_OPTIONS = [
   { 
@@ -96,7 +96,6 @@ export default function App() {
   const [posterSize, setPosterSize] = useState<PosterSize>('a4');
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
   const [selectedLogo, setSelectedLogo] = useState(LOGO_OPTIONS[0]);
-  const [logoScale, setLogoScale] = useState(70);
   const [selectedIcon, setSelectedIcon] = useState(ICON_OPTIONS[0]);
   const [iconSize, setIconSize] = useState(70);
   const [iconColor, setIconColor] = useState('#f18e2c');
@@ -211,30 +210,6 @@ export default function App() {
           <h1 className="text-2xl font-bold text-brand-brown font-taipei">海報設定</h1>
         </div>
         
-        {/* Logo Configuration */}
-        <div className="space-y-4">
-          <label className="flex items-center gap-2 text-sm font-semibold text-brand-brown/70 uppercase tracking-wider">
-            <ImageIcon size={16} /> LOGO 設定
-          </label>
-          
-          <div className="flex flex-col gap-4">
-            <div className="space-y-1">
-              <div className="flex justify-between text-[10px] font-bold text-brand-brown/50 uppercase">
-                <span>LOGO 大小</span>
-                <span>{logoScale}%</span>
-              </div>
-              <input
-                type="range"
-                min="20"
-                max="200"
-                value={logoScale}
-                onChange={(e) => setLogoScale(parseInt(e.target.value))}
-                className="w-full accent-brand-orange h-1.5"
-              />
-            </div>
-          </div>
-        </div>
-
         {/* Icon Selection */}
         <div className="space-y-4">
           <label className="flex items-center gap-2 text-sm font-semibold text-brand-brown/70 uppercase tracking-wider">
@@ -699,7 +674,7 @@ export default function App() {
               onLoad={(e) => {
                 const img = e.target as HTMLImageElement;
                 const baseH = parseInt(selectedLogo.baseHeight.split('-')[1]) * 4; // tailwind h-24 = 96px
-                img.style.height = `${baseH * (logoScale / 100)}px`;
+                img.style.height = `${baseH * (70 / 100)}px`;
               }}
               onError={(e) => {
                 (e.target as HTMLImageElement).src = "https://picsum.photos/seed/medical/200/80";
