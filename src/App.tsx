@@ -52,24 +52,29 @@ type ImageFit = 'cover' | 'contain' | 'fill';
 type LayoutStyle = 'standard' | 'modern' | 'minimalist';
 type PosterSize = 'a4' | 'a3' | 'square';
 
+// Import local logos
+import logo1 from './logo1.png';
+import logo2 from './logo2.png';
+import logo3 from './logo3.png';
+
 const LOGO_OPTIONS = [
   { 
     id: 'logo-1', 
-    url: 'https://picsum.photos/seed/medical-logo-1/400/160', 
-    label: '標誌 (大)',
-    baseHeight: 'h-24'
-  },
-  { 
-    id: 'logo-2', 
-    url: 'https://picsum.photos/seed/medical-logo-2/400/160', 
-    label: '標誌 + 文字 (下)',
+    url: logo1, 
+    label: '顧家醫療 - 標誌',
     baseHeight: 'h-32'
   },
   { 
+    id: 'logo-2', 
+    url: logo2, 
+    label: '顧家醫療 - 標誌 + 文字 (直式)',
+    baseHeight: 'h-48'
+  },
+  { 
     id: 'logo-3', 
-    url: 'https://picsum.photos/seed/medical-logo-3/400/160', 
-    label: '標誌 + 文字 (右)',
-    baseHeight: 'h-20'
+    url: logo3, 
+    label: '顧家醫療 - 標誌 + 文字 (橫式)',
+    baseHeight: 'h-24'
   }
 ];
 
