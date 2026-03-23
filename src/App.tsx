@@ -52,24 +52,10 @@ type ImageFit = 'cover' | 'contain' | 'fill';
 type LayoutStyle = 'standard' | 'modern' | 'minimalist';
 type PosterSize = 'a4' | 'a3' | 'square';
 
-// Import local logos
-import logo1 from './logo1.png';
-import logo2 from './logo2.png';
-import logo3 from './logo3.png';
+// Import local logos (Ensure logo3.png is uploaded to /src)
+const logo3 = "https://picsum.photos/seed/medical/200/80"; 
 
 const LOGO_OPTIONS = [
-  { 
-    id: 'logo-1', 
-    url: logo1, 
-    label: '顧家醫療 - 標誌',
-    baseHeight: 'h-32'
-  },
-  { 
-    id: 'logo-2', 
-    url: logo2, 
-    label: '顧家醫療 - 標誌 + 文字 (直式)',
-    baseHeight: 'h-48'
-  },
   { 
     id: 'logo-3', 
     url: logo3, 
@@ -108,11 +94,12 @@ export default function App() {
   const [imageFit, setImageFit] = useState<ImageFit>('cover');
   const [layoutStyle, setLayoutStyle] = useState<LayoutStyle>('standard');
   const [posterSize, setPosterSize] = useState<PosterSize>('a4');
+  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
   const [selectedLogo, setSelectedLogo] = useState(LOGO_OPTIONS[0]);
-  const [logoScale, setLogoScale] = useState(100);
+  const [logoScale, setLogoScale] = useState(70);
   const [selectedIcon, setSelectedIcon] = useState(ICON_OPTIONS[0]);
-  const [iconSize, setIconSize] = useState(48);
-  const [iconColor, setIconColor] = useState('#FF8A00');
+  const [iconSize, setIconSize] = useState(70);
+  const [iconColor, setIconColor] = useState('#f18e2c');
   const [iconPos, setIconPos] = useState({ x: 50, y: 30 }); // percentage
   const [iconRotation, setIconRotation] = useState(0);
   const [isDraggingIcon, setIsDraggingIcon] = useState(false);
@@ -124,7 +111,6 @@ export default function App() {
   const [subtitleColor, setSubtitleColor] = useState('#6d563c');
   const [titleWeight, setTitleWeight] = useState(700);
   const [subtitleWeight, setSubtitleWeight] = useState(400);
-  const [customLogo, setCustomLogo] = useState<string | null>(null);
   const posterRef = useRef<HTMLDivElement>(null);
 
   const handleIconMouseDown = (e: React.MouseEvent) => {
@@ -202,17 +188,6 @@ export default function App() {
     }
   };
 
-  const handleCustomLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setCustomLogo(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const downloadPoster = async () => {
     if (posterRef.current) {
       const canvas = await html2canvas(posterRef.current, {
@@ -236,54 +211,13 @@ export default function App() {
           <h1 className="text-2xl font-bold text-brand-brown font-taipei">海報設定</h1>
         </div>
         
-        {/* Logo Selection */}
+        {/* Logo Configuration */}
         <div className="space-y-4">
           <label className="flex items-center gap-2 text-sm font-semibold text-brand-brown/70 uppercase tracking-wider">
-            <ImageIcon size={16} /> 選擇 LOGO 樣式
+            <ImageIcon size={16} /> LOGO 設定
           </label>
           
           <div className="flex flex-col gap-4">
-            <label className="cursor-pointer flex items-center justify-center gap-2 w-full py-2 border-2 border-dashed border-brand-brown/10 hover:border-brand-orange rounded-xl transition-colors text-brand-brown/40 hover:text-brand-orange text-xs font-bold">
-              <Upload size={14} />
-              <span>上傳自定義 LOGO</span>
-              <input type="file" accept="image/*" onChange={handleCustomLogoUpload} className="hidden" />
-            </label>
-
-            {customLogo && (
-              <div className="flex items-center justify-between p-2 bg-brand-orange/5 rounded-lg border border-brand-orange/20">
-                <div className="flex items-center gap-2">
-                  <img src={customLogo} alt="Custom Logo" className="h-8 w-8 object-contain rounded" />
-                  <span className="text-[10px] font-bold text-brand-orange">已套用自定義 LOGO</span>
-                </div>
-                <button onClick={() => setCustomLogo(null)} className="text-red-500 hover:text-red-700">
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            )}
-
-            {!customLogo && (
-              <div className="grid grid-cols-1 gap-3">
-                {LOGO_OPTIONS.map((logo) => (
-                  <button
-                    key={logo.id}
-                    onClick={() => setSelectedLogo(logo)}
-                    className={cn(
-                      "p-3 rounded-xl border-2 transition-all flex items-center justify-center bg-gray-50",
-                      selectedLogo.id === logo.id 
-                        ? "border-brand-orange bg-brand-orange/5" 
-                        : "border-brand-brown/10 hover:border-brand-orange/50"
-                    )}
-                  >
-                    <img 
-                      src={logo.url} 
-                      alt={logo.label} 
-                      className="h-12 object-contain"
-                    />
-                  </button>
-                ))}
-              </div>
-            )}
-
             <div className="space-y-1">
               <div className="flex justify-between text-[10px] font-bold text-brand-brown/50 uppercase">
                 <span>LOGO 大小</span>
@@ -326,102 +260,61 @@ export default function App() {
           </div>
 
           {selectedIcon.id !== 'none' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[10px] font-bold text-brand-brown/50 uppercase">
-                    <span>大小</span>
-                    <span>{iconSize}px</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="12"
-                    max="200"
-                    value={iconSize}
-                    onChange={(e) => setIconSize(parseInt(e.target.value))}
-                    className="w-full accent-brand-orange h-1.5"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[10px] font-bold text-brand-brown/50 uppercase">
-                    <span>旋轉</span>
-                    <span>{iconRotation}°</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="360"
-                    value={iconRotation}
-                    onChange={(e) => setIconRotation(parseInt(e.target.value))}
-                    className="w-full accent-brand-orange h-1.5"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex justify-between text-[10px] font-bold text-brand-brown/50 uppercase">
-                  <span>顏色</span>
-                </div>
-                <input
-                  type="color"
-                  value={iconColor}
-                  onChange={(e) => setIconColor(e.target.value)}
-                  className="w-full h-6 rounded cursor-pointer bg-transparent"
-                />
-              </div>
-
-              <div className="p-3 bg-brand-orange/5 rounded-lg border border-brand-orange/20">
-                <p className="text-[10px] font-bold text-brand-orange flex items-center gap-1">
-                  <Move size={12} /> 提示：您可以直接在預覽圖中拖拉圖示位置
-                </p>
-              </div>
+            <div className="p-3 bg-brand-orange/5 rounded-lg border border-brand-orange/20">
+              <p className="text-[10px] font-bold text-brand-orange flex items-center gap-1">
+                <Move size={12} /> 提示：您可以直接在預覽圖中拖拉圖示位置
+              </p>
             </div>
           )}
         </div>
 
-        {/* Layout Style */}
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-sm font-semibold text-brand-brown/70 uppercase tracking-wider">
-            <Layout size={16} /> 版面樣式
-          </label>
-          <div className="grid grid-cols-3 gap-2">
-            {(['standard', 'modern', 'minimalist'] as LayoutStyle[]).map((style) => (
-              <button
-                key={style}
-                onClick={() => setLayoutStyle(style)}
-                className={cn(
-                  "py-2 px-3 rounded-lg text-xs font-bold border transition-all capitalize",
-                  layoutStyle === style 
-                    ? "bg-brand-orange border-brand-orange text-white" 
-                    : "border-brand-brown/10 text-brand-brown/60 hover:border-brand-orange"
-                )}
-              >
-                {style}
-              </button>
-            ))}
+        {/* Poster Size & Orientation */}
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-semibold text-brand-brown/70 uppercase tracking-wider">
+              <Maximize size={16} /> 海報尺寸
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {(['a4', 'a3', 'square'] as PosterSize[]).map((size) => (
+                <button
+                  key={size}
+                  onClick={() => setPosterSize(size)}
+                  className={cn(
+                    "py-2 px-3 rounded-lg text-xs font-bold border transition-all uppercase",
+                    posterSize === size 
+                      ? "bg-brand-orange border-brand-orange text-white" 
+                      : "border-brand-brown/10 text-brand-brown/60 hover:border-brand-orange"
+                  )}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Poster Size */}
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-sm font-semibold text-brand-brown/70 uppercase tracking-wider">
-            <Maximize size={16} /> 海報尺寸
-          </label>
-          <div className="grid grid-cols-3 gap-2">
-            {(['a4', 'a3', 'square'] as PosterSize[]).map((size) => (
-              <button
-                key={size}
-                onClick={() => setPosterSize(size)}
-                className={cn(
-                  "py-2 px-3 rounded-lg text-xs font-bold border transition-all uppercase",
-                  posterSize === size 
-                    ? "bg-brand-orange border-brand-orange text-white" 
-                    : "border-brand-brown/10 text-brand-brown/60 hover:border-brand-orange"
-                )}
-              >
-                {size}
-              </button>
-            ))}
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-semibold text-brand-brown/70 uppercase tracking-wider">
+              <RotateCw size={16} /> 海報方向
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { id: 'portrait', label: '直式' },
+                { id: 'landscape', label: '橫式' }
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => setOrientation(opt.id as 'portrait' | 'landscape')}
+                  className={cn(
+                    "py-2 px-3 rounded-lg text-xs font-bold border transition-all",
+                    orientation === opt.id 
+                      ? "bg-brand-orange border-brand-orange text-white" 
+                      : "border-brand-brown/10 text-brand-brown/60 hover:border-brand-orange"
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -599,7 +492,7 @@ export default function App() {
                     className="w-6 h-6 rounded cursor-pointer bg-transparent"
                   />
                   <div className="flex gap-1">
-                    {['#6d563c', '#f18e2c', '#000000'].map((c) => (
+                    {['#6d563c', '#f18e2c'].map((c) => (
                       <button
                         key={c}
                         onClick={() => setSubtitleColor(c)}
@@ -767,9 +660,10 @@ export default function App() {
           ref={posterRef}
           className={cn(
             "relative bg-white shadow-2xl overflow-hidden flex flex-col transition-all",
-            posterSize === 'a4' ? "w-[500px] aspect-[1/1.414]" : 
-            posterSize === 'a3' ? "w-[600px] aspect-[1/1.414]" : "w-[500px] aspect-square",
-            layoutStyle === 'standard' ? "border-[12px] border-brand-orange" : "border-0"
+            posterSize === 'a4' ? (orientation === 'portrait' ? "w-[500px] aspect-[1/1.414]" : "w-[700px] aspect-[1.414/1]") : 
+            posterSize === 'a3' ? (orientation === 'portrait' ? "w-[600px] aspect-[1/1.414]" : "w-[848px] aspect-[1.414/1]") : 
+            "w-[500px] aspect-square",
+            "border-[12px] border-brand-orange"
           )}
           style={{ 
             backgroundColor: '#ffffff'
@@ -792,27 +686,23 @@ export default function App() {
           {/* Header: Logo */}
           <div className="z-10 p-8 flex justify-center min-h-[120px] items-center">
             <img 
-              src={customLogo || selectedLogo.url} 
+              src={selectedLogo.url} 
               alt="顧家醫療 Logo" 
               style={{ 
-                height: customLogo ? `${96 * (logoScale / 100)}px` : 'auto',
+                height: 'auto',
                 maxHeight: '200px'
               }}
               className={cn(
                 "object-contain", 
-                !customLogo && selectedLogo.baseHeight
+                selectedLogo.baseHeight
               )}
               onLoad={(e) => {
-                if (!customLogo) {
-                  const img = e.target as HTMLImageElement;
-                  const baseH = parseInt(selectedLogo.baseHeight.split('-')[1]) * 4; // tailwind h-24 = 96px
-                  img.style.height = `${baseH * (logoScale / 100)}px`;
-                }
+                const img = e.target as HTMLImageElement;
+                const baseH = parseInt(selectedLogo.baseHeight.split('-')[1]) * 4; // tailwind h-24 = 96px
+                img.style.height = `${baseH * (logoScale / 100)}px`;
               }}
               onError={(e) => {
-                if (!customLogo) {
-                  (e.target as HTMLImageElement).src = "https://picsum.photos/seed/medical/200/80";
-                }
+                (e.target as HTMLImageElement).src = "https://picsum.photos/seed/medical/200/80";
               }}
             />
           </div>
