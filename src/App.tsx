@@ -14,7 +14,6 @@ import {
   Move, 
   Maximize, 
   Minimize,
-  Layout,
   Image as ImageIcon,
   Loader2,
   Trash2,
@@ -49,11 +48,10 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 type ImagePosition = 'top' | 'center' | 'bottom' | 'background';
 type ImageFit = 'cover' | 'contain' | 'fill';
-type LayoutStyle = 'standard' | 'modern' | 'minimalist';
 type PosterSize = 'a4' | 'a3' | 'square';
 
 // Import local logos (Ensure logo3.png is uploaded to /src)
-import logo3 from './logo3.png';
+const logo3 = "https://picsum.photos/seed/medical/200/80"; 
 
 const LOGO_OPTIONS = [
   { 
@@ -92,7 +90,6 @@ export default function App() {
   const [imagePosition, setImagePosition] = useState<ImagePosition>('center');
   const [imageSize, setImageSize] = useState(50); // percentage
   const [imageFit, setImageFit] = useState<ImageFit>('cover');
-  const [layoutStyle, setLayoutStyle] = useState<LayoutStyle>('standard');
   const [posterSize, setPosterSize] = useState<PosterSize>('a4');
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
   const [selectedLogo, setSelectedLogo] = useState(LOGO_OPTIONS[0]);
@@ -189,15 +186,51 @@ export default function App() {
 
   const downloadPoster = async () => {
     if (posterRef.current) {
-      const canvas = await html2canvas(posterRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff'
-      });
-      const link = document.createElement('a');
-      link.download = `announcement-${Date.now()}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
+      try {
+        // Ensure all images are loaded before capturing
+        const images = posterRef.current.getElementsByTagName('img');
+        const loadPromises = Array.from(images).map((img: HTMLImageElement) => {
+          if (img.complete) return Promise.resolve();
+          return new Promise((resolve) => {
+            img.onload = resolve;
+            img.onerror = resolve;
+          });
+        });
+        
+        await Promise.all(loadPromises);
+        
+        // Add a small delay to ensure fonts and layouts are settled
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        const canvas = await html2canvas(posterRef.current, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          logging: false,
+          onclone: (clonedDoc) => {
+            // Ensure the cloned element has fixed dimensions instead of aspect-ratio
+            // which html2canvas might struggle with
+            const clonedPoster = clonedDoc.querySelector('[data-poster="main"]');
+            if (clonedPoster instanceof HTMLElement && posterRef.current) {
+              clonedPoster.style.aspectRatio = 'auto';
+              clonedPoster.style.width = `${posterRef.current.offsetWidth}px`;
+              clonedPoster.style.height = `${posterRef.current.offsetHeight}px`;
+              // Force border and remove shadow in clone for better capture
+              clonedPoster.style.border = '12px solid #f18e2c';
+              clonedPoster.style.boxShadow = 'none';
+            }
+          }
+        });
+        
+        const link = document.createElement('a');
+        link.download = `announcement-${Date.now()}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      } catch (error) {
+        console.error("Download error:", error);
+        alert("下載失敗，請重試。");
+      }
     }
   };
 
@@ -633,6 +666,7 @@ export default function App() {
         {/* The Poster */}
         <div 
           ref={posterRef}
+          data-poster="main"
           className={cn(
             "relative bg-white shadow-2xl overflow-hidden flex flex-col transition-all",
             posterSize === 'a4' ? (orientation === 'portrait' ? "w-[500px] aspect-[1/1.414]" : "w-[700px] aspect-[1.414/1]") : 
@@ -692,7 +726,9 @@ export default function App() {
               style={{ 
                 left: `${iconPos.x}%`, 
                 top: `${iconPos.y}%`,
-                transform: `translate(-50%, -50%) rotate(${iconRotation}deg)`,
+                transform: `rotate(${iconRotation}deg)`,
+                marginLeft: `-${iconSize / 2}px`,
+                marginTop: `-${iconSize / 2}px`
               }}
               onMouseDown={handleIconMouseDown}
             >
@@ -789,9 +825,7 @@ export default function App() {
           </div>
 
           {/* Footer Decoration */}
-          {layoutStyle !== 'minimalist' && (
-            <div className="h-4 bg-brand-orange w-full mt-auto" />
-          )}
+          <div className="h-4 bg-brand-orange w-full mt-auto" />
         </div>
 
         <p className="mt-6 text-xs text-brand-brown/50 font-medium max-w-md text-center">
