@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import html2canvas from 'html2canvas';
+import * as htmlToImage from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { 
   Download, 
@@ -47,7 +47,7 @@ type ImageFit = 'cover' | 'contain' | 'fill';
 type PosterSize = 'a4' | 'a3' | 'square';
 
 // Import local logos (Ensure logo3.png is uploaded to /src)
-// Using a string to avoid build errors if the file is missing
+// @ts-ignore
 import logo3 from './logo3.png';
 
 const LOGO_OPTIONS = [
@@ -255,111 +255,73 @@ export default function App() {
     }
   };
 
-  const downloadPoster = async (format: 'pdf' | 'png' = 'pdf') => {
+  const downloadPoster = async (format: 'pdf' | 'png' | 'print' = 'pdf') => {
     if (!posterRef.current || isDownloading) return;
     
     setIsDownloading(true);
-    const originalScrollY = window.scrollY;
     
     try {
-      // Scroll to top to avoid html2canvas offset issues
-      window.scrollTo(0, 0);
-      
-      // Ensure all images are loaded before capturing
+      // Ensure all images are loaded
       const images = posterRef.current.getElementsByTagName('img');
-      const loadPromises = Array.from(images).map((img: HTMLImageElement) => {
-        if (img.complete) return Promise.resolve();
-        return new Promise((resolve) => {
-          const timeout = setTimeout(resolve, 5000); // 5s timeout per image
-          img.onload = () => { clearTimeout(timeout); resolve(null); };
-          img.onerror = () => { clearTimeout(timeout); resolve(null); };
+      await Promise.all(Array.from(images).map(img => {
+        const htmlImg = img as HTMLImageElement;
+        if (htmlImg.complete) return Promise.resolve();
+        return new Promise(resolve => {
+          htmlImg.onload = resolve;
+          htmlImg.onerror = resolve;
         });
-      });
-      
-      await Promise.all(loadPromises);
-      
-      // Wait for fonts and layout
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      }));
 
-      const canvas = await html2canvas(posterRef.current, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: false,
+      // Small delay for fonts
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      if (format === 'print') {
+        window.print();
+        setIsDownloading(false);
+        return;
+      }
+
+      const options = {
+        quality: 1,
+        pixelRatio: 2,
         backgroundColor: '#ffffff',
-        logging: true,
-        width: posterRef.current.offsetWidth,
-        height: posterRef.current.offsetHeight,
-        scrollX: 0,
-        scrollY: 0,
-        onclone: (clonedDoc) => {
-          const clonedPoster = clonedDoc.getElementById('poster-main-element');
-          if (clonedPoster instanceof HTMLElement) {
-            clonedPoster.style.aspectRatio = 'auto';
-            clonedPoster.style.width = `${posterRef.current?.offsetWidth}px`;
-            clonedPoster.style.height = `${posterRef.current?.offsetHeight}px`;
-            clonedPoster.style.border = '12px solid #f18e2c';
-            clonedPoster.style.boxShadow = 'none';
-            clonedPoster.style.transform = 'none';
-            clonedPoster.style.position = 'relative';
-            clonedPoster.style.left = '0';
-            clonedPoster.style.top = '0';
-            clonedPoster.style.margin = '0';
-          }
+        style: {
+          transform: 'none',
+          boxShadow: 'none',
+          border: '12px solid #f18e2c',
+          margin: '0',
+          left: '0',
+          top: '0',
         }
-      });
-      
-      // Restore scroll position
-      window.scrollTo(0, originalScrollY);
+      };
 
       if (format === 'png') {
-        canvas.toBlob((blob) => {
-          if (!blob) {
-            alert("圖片生成失敗，請重試。");
-            return;
-          }
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = `announcement-${Date.now()}.png`;
-          link.style.display = 'none';
-          document.body.appendChild(link);
-          link.click();
-          setTimeout(() => {
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-          }, 100);
-        }, 'image/png', 1.0);
+        const dataUrl = await htmlToImage.toPng(posterRef.current, options);
+        const link = document.createElement('a');
+        link.download = `announcement-${Date.now()}.png`;
+        link.href = dataUrl;
+        link.click();
       } else {
-        const imgData = canvas.toDataURL('image/png', 1.0);
+        const dataUrl = await htmlToImage.toPng(posterRef.current, options);
+        
+        // Get dimensions from the element itself to maintain aspect ratio
+        const width = posterRef.current.offsetWidth;
+        const height = posterRef.current.offsetHeight;
         
         const pdf = new jsPDF({
-          orientation: orientation === 'portrait' ? 'p' : 'l',
+          orientation: width > height ? 'l' : 'p',
           unit: 'px',
-          format: [canvas.width, canvas.height],
+          format: [width, height],
           hotfixes: ["px_scaling"]
         });
         
-        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height, undefined, 'FAST');
-        
-        const pdfBlob = pdf.output('blob');
-        const url = URL.createObjectURL(pdfBlob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `announcement-${Date.now()}.pdf`;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        
-        setTimeout(() => {
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-        }, 100);
+        pdf.addImage(dataUrl, 'PNG', 0, 0, width, height, undefined, 'FAST');
+        pdf.save(`announcement-${Date.now()}.pdf`);
       }
       
     } catch (error) {
       console.error("Download error:", error);
-      window.scrollTo(0, originalScrollY);
-      alert("下載失敗。建議嘗試：\n1. 使用電腦版 Chrome 瀏覽器\n2. 重新整理頁面\n3. 嘗試下載圖片格式 (PNG)\n4. 檢查是否有阻擋彈出視窗");
+      alert("下載失敗。建議嘗試：\n1. 使用電腦版 Chrome 瀏覽器\n2. 重新整理頁面\n3. 嘗試下載圖片格式 (PNG)\n4. 使用列印功能 (Ctrl+P) 另存為 PDF");
     } finally {
       setIsDownloading(false);
     }
@@ -810,6 +772,19 @@ export default function App() {
             )}
           >
             <ImageIcon size={18} /> 下載為圖片 (PNG)
+          </button>
+
+          <button
+            onClick={() => downloadPoster('print')}
+            disabled={isDownloading}
+            className={cn(
+              "w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all border-2",
+              isDownloading 
+                ? "border-gray-200 text-gray-400 cursor-not-allowed" 
+                : "border-brand-orange/20 text-brand-orange hover:bg-brand-orange/5"
+            )}
+          >
+            <Megaphone size={18} /> 列印海報
           </button>
         </div>
       </div>
