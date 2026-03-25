@@ -255,7 +255,7 @@ export default function App() {
     }
   };
 
-  const downloadPoster = async (format: 'pdf' | 'png' | 'print' = 'pdf') => {
+  const downloadPoster = async (format: 'pdf' | 'png' = 'pdf') => {
     if (!posterRef.current || isDownloading) return;
     
     setIsDownloading(true);
@@ -274,12 +274,6 @@ export default function App() {
 
       // Small delay for fonts
       await new Promise(resolve => setTimeout(resolve, 500));
-
-      if (format === 'print') {
-        window.print();
-        setIsDownloading(false);
-        return;
-      }
 
       const options = {
         quality: 1,
@@ -321,7 +315,7 @@ export default function App() {
       
     } catch (error) {
       console.error("Download error:", error);
-      alert("下載失敗。建議嘗試：\n1. 使用電腦版 Chrome 瀏覽器\n2. 重新整理頁面\n3. 嘗試下載圖片格式 (PNG)\n4. 使用列印功能 (Ctrl+P) 另存為 PDF");
+      alert("下載失敗。建議嘗試：\n1. 使用電腦版 Chrome 瀏覽器\n2. 重新整理頁面\n3. 嘗試下載圖片格式 (PNG)");
     } finally {
       setIsDownloading(false);
     }
@@ -772,19 +766,6 @@ export default function App() {
             )}
           >
             <ImageIcon size={18} /> 下載為圖片 (PNG)
-          </button>
-
-          <button
-            onClick={() => downloadPoster('print')}
-            disabled={isDownloading}
-            className={cn(
-              "w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all border-2",
-              isDownloading 
-                ? "border-gray-200 text-gray-400 cursor-not-allowed" 
-                : "border-brand-orange/20 text-brand-orange hover:bg-brand-orange/5"
-            )}
-          >
-            <Megaphone size={18} /> 列印海報
           </button>
         </div>
       </div>
