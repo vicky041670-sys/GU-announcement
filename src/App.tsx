@@ -33,10 +33,12 @@ import {
   AlignCenter,
   AlignLeft,
   AlignRight,
-  Languages
+  Languages,
+  Sparkles
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { GoogleGenAI } from "@google/genai";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -200,6 +202,7 @@ export default function App() {
   const [titleWeight, setTitleWeight] = useState(700);
   const [subtitleWeight, setSubtitleWeight] = useState(400);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
   const posterRef = useRef<HTMLDivElement>(null);
 
   const handleIconMouseDown = (e: React.MouseEvent) => {
@@ -249,6 +252,29 @@ export default function App() {
     });
     
     setter(translated);
+  };
+
+  const handleGeminiTranslate = async (currentText: string, setter: (val: string) => void) => {
+    if (!currentText.trim() || isTranslating) return;
+    
+    setIsTranslating(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `Translate the following medical clinic related text into professional English. Only provide the translated text without any explanation or quotes: "${currentText}"`,
+      });
+      
+      const result = response.text;
+      if (result) {
+        setter(result.trim());
+      }
+    } catch (error) {
+      console.error("Gemini translation error:", error);
+      alert("Gemini 翻譯失敗，請稍後再試。");
+    } finally {
+      setIsTranslating(false);
+    }
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -428,13 +454,24 @@ export default function App() {
               <label className="flex items-center gap-2 text-sm font-bold text-brand-brown uppercase tracking-wider">
                 <Type size={16} /> 主標題設定
               </label>
-              <button 
-                onClick={() => handleManualTranslate(text, setText)}
-                className="text-[10px] font-bold px-2 py-1 bg-brand-orange/10 text-brand-orange rounded hover:bg-brand-orange hover:text-white transition-colors flex items-center gap-1"
-                title="使用內建字典翻譯為英文"
-              >
-                <Languages size={12} /> 中翻英
-              </button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => handleManualTranslate(text, setText)}
+                  className="text-[10px] font-bold px-2 py-1 bg-brand-orange/10 text-brand-orange rounded hover:bg-brand-orange hover:text-white transition-colors flex items-center gap-1"
+                  title="使用內建字典翻譯為英文"
+                >
+                  <Languages size={12} /> 字典翻譯
+                </button>
+                <button 
+                  onClick={() => handleGeminiTranslate(text, setText)}
+                  disabled={isTranslating}
+                  className={`text-[10px] font-bold px-2 py-1 bg-brand-brown/10 text-brand-brown rounded hover:bg-brand-brown hover:text-white transition-colors flex items-center gap-1 ${isTranslating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  title="使用 Gemini AI 翻譯為英文"
+                >
+                  <Sparkles size={12} className={isTranslating ? 'animate-pulse' : ''} /> 
+                  {isTranslating ? '翻譯中...' : 'Gemini 翻譯'}
+                </button>
+              </div>
             </div>
             <textarea
               value={text}
@@ -548,13 +585,24 @@ export default function App() {
               <label className="flex items-center gap-2 text-sm font-bold text-brand-brown/60 uppercase tracking-wider">
                 <Type size={16} className="opacity-50" /> 副標題設定
               </label>
-              <button 
-                onClick={() => handleManualTranslate(subtitle, setSubtitle)}
-                className="text-[10px] font-bold px-2 py-1 bg-brand-orange/10 text-brand-orange rounded hover:bg-brand-orange hover:text-white transition-colors flex items-center gap-1"
-                title="使用內建字典翻譯為英文"
-              >
-                <Languages size={12} /> 中翻英
-              </button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => handleManualTranslate(subtitle, setSubtitle)}
+                  className="text-[10px] font-bold px-2 py-1 bg-brand-orange/10 text-brand-orange rounded hover:bg-brand-orange hover:text-white transition-colors flex items-center gap-1"
+                  title="使用內建字典翻譯為英文"
+                >
+                  <Languages size={12} /> 字典翻譯
+                </button>
+                <button 
+                  onClick={() => handleGeminiTranslate(subtitle, setSubtitle)}
+                  disabled={isTranslating}
+                  className={`text-[10px] font-bold px-2 py-1 bg-brand-brown/10 text-brand-brown rounded hover:bg-brand-brown hover:text-white transition-colors flex items-center gap-1 ${isTranslating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  title="使用 Gemini AI 翻譯為英文"
+                >
+                  <Sparkles size={12} className={isTranslating ? 'animate-pulse' : ''} /> 
+                  {isTranslating ? '翻譯中...' : 'Gemini 翻譯'}
+                </button>
+              </div>
             </div>
             <textarea
               value={subtitle}
