@@ -47,17 +47,30 @@ type ImageFit = 'cover' | 'contain' | 'fill';
 type PosterSize = 'a4' | 'a3' | 'square';
 
 // Import local logos (Ensure logo3.png is uploaded to /src)
-// @ts-ignore
-import logo3 from './logo3.png';
+// If logo3.png is missing, we use a fallback URL to prevent build errors
+const logo3 = "https://picsum.photos/seed/medical-logo/400/120";
 
 const LOGO_OPTIONS = [
   { 
     id: 'logo-3', 
-    url: "https://picsum.photos/seed/medical-logo/400/120", 
+    url: logo3, 
     label: '顧家醫療 - 標誌 + 文字 (橫式)',
     baseHeight: 'h-24'
+  },
+  { 
+    id: 'logo-placeholder', 
+    url: "https://picsum.photos/seed/medical-logo/400/120", 
+    label: '備用標誌 (網路圖片)',
+    baseHeight: 'h-24'
+  },
+  { 
+    id: 'none', 
+    url: 'https://picsum.photos/seed/none/1/1', 
+    label: '不顯示標誌',
+    baseHeight: 'h-0'
   }
 ];
+
 
 const ICON_OPTIONS = [
   { id: 'none', icon: null, label: '無' },
