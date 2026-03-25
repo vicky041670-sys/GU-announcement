@@ -51,7 +51,8 @@ type ImageFit = 'cover' | 'contain' | 'fill';
 type PosterSize = 'a4' | 'a3' | 'square';
 
 // Import local logos (Ensure logo3.png is uploaded to /src)
-import logo3 from './logo3.png'; 
+// Using a string to avoid build errors if the file is missing
+const logo3 = "/src/logo3.png"; 
 
 const LOGO_OPTIONS = [
   { 
@@ -200,36 +201,43 @@ export default function App() {
         await Promise.all(loadPromises);
         
         // Add a small delay to ensure fonts and layouts are settled
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 800));
 
         const canvas = await html2canvas(posterRef.current, {
           scale: 2,
           useCORS: true,
-          allowTaint: true,
+          allowTaint: false, // Set to false to prevent tainted canvas
           backgroundColor: '#ffffff',
           logging: false,
           onclone: (clonedDoc) => {
-            // Ensure the cloned element has fixed dimensions instead of aspect-ratio
-            // which html2canvas might struggle with
             const clonedPoster = clonedDoc.querySelector('[data-poster="main"]');
             if (clonedPoster instanceof HTMLElement && posterRef.current) {
               clonedPoster.style.aspectRatio = 'auto';
               clonedPoster.style.width = `${posterRef.current.offsetWidth}px`;
               clonedPoster.style.height = `${posterRef.current.offsetHeight}px`;
-              // Force border and remove shadow in clone for better capture
               clonedPoster.style.border = '12px solid #f18e2c';
               clonedPoster.style.boxShadow = 'none';
+              clonedPoster.style.transform = 'none';
             }
           }
         });
         
-        const link = document.createElement('a');
-        link.download = `announcement-${Date.now()}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
+        // Use toBlob for better compatibility in iframes
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `announcement-${Date.now()}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+          }
+        }, 'image/png', 1.0);
       } catch (error) {
         console.error("Download error:", error);
-        alert("下載失敗，請重試。");
+        alert("下載失敗，請重試。若持續失敗，請嘗試在電腦版瀏覽器開啟。");
       }
     }
   };
@@ -684,6 +692,8 @@ export default function App() {
               <img 
                 src={uploadedImage} 
                 alt="" 
+                crossOrigin="anonymous"
+                referrerPolicy="no-referrer"
                 className={cn(
                   "w-full h-full",
                   imageFit === 'cover' ? "object-cover" : imageFit === 'contain' ? "object-contain" : "object-fill"
@@ -697,6 +707,8 @@ export default function App() {
             <img 
               src={selectedLogo.url} 
               alt="顧家醫療 Logo" 
+              crossOrigin="anonymous"
+              referrerPolicy="no-referrer"
               style={{ 
                 height: 'auto',
                 maxHeight: '200px'
@@ -749,6 +761,8 @@ export default function App() {
                 <img 
                   src={uploadedImage} 
                   alt="" 
+                  crossOrigin="anonymous"
+                  referrerPolicy="no-referrer"
                   style={{ width: `${imageSize}%` }}
                   className={cn(
                     "rounded-lg shadow-sm",
@@ -765,6 +779,8 @@ export default function App() {
                   <img 
                     src={uploadedImage} 
                     alt="" 
+                    crossOrigin="anonymous"
+                    referrerPolicy="no-referrer"
                     style={{ width: `${imageSize}%` }}
                     className={cn(
                       "mx-auto rounded-lg shadow-sm",
