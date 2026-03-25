@@ -53,7 +53,7 @@ const logo3 = "/src/logo3.png";
 const LOGO_OPTIONS = [
   { 
     id: 'logo-3', 
-    url: logo3, 
+    url: "https://picsum.photos/seed/medical-logo/400/120", 
     label: '顧家醫療 - 標誌 + 文字 (橫式)',
     baseHeight: 'h-24'
   }
@@ -270,14 +270,14 @@ export default function App() {
         await Promise.all(loadPromises);
         
         // Add a small delay to ensure fonts and layouts are settled
-        await new Promise(resolve => setTimeout(resolve, 800));
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         const canvas = await html2canvas(posterRef.current, {
           scale: 2,
           useCORS: true,
           allowTaint: false,
           backgroundColor: '#ffffff',
-          logging: false,
+          logging: true, // Enable logging for debugging
           onclone: (clonedDoc) => {
             const clonedPoster = clonedDoc.querySelector('[data-poster="main"]');
             if (clonedPoster instanceof HTMLElement && posterRef.current) {
@@ -287,22 +287,39 @@ export default function App() {
               clonedPoster.style.border = '12px solid #f18e2c';
               clonedPoster.style.boxShadow = 'none';
               clonedPoster.style.transform = 'none';
+              clonedPoster.style.position = 'relative';
+              clonedPoster.style.left = '0';
+              clonedPoster.style.top = '0';
             }
           }
         });
         
-        const imgData = canvas.toDataURL('image/png');
+        const imgData = canvas.toDataURL('image/png', 1.0);
+        
+        // Create PDF with proper dimensions
         const pdf = new jsPDF({
           orientation: orientation === 'portrait' ? 'p' : 'l',
           unit: 'px',
-          format: [canvas.width, canvas.height]
+          format: [canvas.width, canvas.height],
+          hotfixes: ["px_scaling"]
         });
         
         pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-        pdf.save(`announcement-${Date.now()}.pdf`);
+        
+        // Use blob for more reliable download in some environments
+        const pdfBlob = pdf.output('blob');
+        const url = URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `announcement-${Date.now()}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
       } catch (error) {
         console.error("Download error:", error);
-        alert("下載失敗，請重試。若持續失敗，請嘗試在電腦版瀏覽器開啟。");
+        alert("下載失敗，請重試。若持續失敗，請嘗試：\n1. 在電腦版瀏覽器開啟\n2. 檢查網路連線\n3. 重新整理頁面");
       }
     }
   };
