@@ -192,6 +192,7 @@ export default function App() {
   const [subtitleColor, setSubtitleColor] = useState('#6d563c');
   const [titleWeight, setTitleWeight] = useState(700);
   const [subtitleWeight, setSubtitleWeight] = useState(400);
+  const [isDownloading, setIsDownloading] = useState(false);
   const posterRef = useRef<HTMLDivElement>(null);
 
   const handleIconMouseDown = (e: React.MouseEvent) => {
@@ -254,8 +255,9 @@ export default function App() {
     }
   };
 
-  const downloadPoster = async () => {
-    if (posterRef.current) {
+  const downloadPoster = async (format: 'pdf' | 'png' = 'pdf') => {
+    if (posterRef.current && !isDownloading) {
+      setIsDownloading(true);
       try {
         // Ensure all images are loaded before capturing
         const images = posterRef.current.getElementsByTagName('img');
@@ -277,7 +279,7 @@ export default function App() {
           useCORS: true,
           allowTaint: false,
           backgroundColor: '#ffffff',
-          logging: true, // Enable logging for debugging
+          logging: true,
           onclone: (clonedDoc) => {
             const clonedPoster = clonedDoc.querySelector('[data-poster="main"]');
             if (clonedPoster instanceof HTMLElement && posterRef.current) {
@@ -294,32 +296,44 @@ export default function App() {
           }
         });
         
-        const imgData = canvas.toDataURL('image/png', 1.0);
-        
-        // Create PDF with proper dimensions
-        const pdf = new jsPDF({
-          orientation: orientation === 'portrait' ? 'p' : 'l',
-          unit: 'px',
-          format: [canvas.width, canvas.height],
-          hotfixes: ["px_scaling"]
-        });
-        
-        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-        
-        // Use blob for more reliable download in some environments
-        const pdfBlob = pdf.output('blob');
-        const url = URL.createObjectURL(pdfBlob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `announcement-${Date.now()}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        if (format === 'png') {
+          const imgData = canvas.toDataURL('image/png', 1.0);
+          const link = document.createElement('a');
+          link.href = imgData;
+          link.download = `announcement-${Date.now()}.png`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } else {
+          const imgData = canvas.toDataURL('image/png', 1.0);
+          
+          // Create PDF with proper dimensions
+          const pdf = new jsPDF({
+            orientation: orientation === 'portrait' ? 'p' : 'l',
+            unit: 'px',
+            format: [canvas.width, canvas.height],
+            hotfixes: ["px_scaling"]
+          });
+          
+          pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+          
+          // Use blob for more reliable download in some environments
+          const pdfBlob = pdf.output('blob');
+          const url = URL.createObjectURL(pdfBlob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `announcement-${Date.now()}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }
         
       } catch (error) {
         console.error("Download error:", error);
-        alert("下載失敗，請重試。若持續失敗，請嘗試：\n1. 在電腦版瀏覽器開啟\n2. 檢查網路連線\n3. 重新整理頁面");
+        alert("下載失敗，可能原因：\n1. 圖片來源限制 (CORS)\n2. 瀏覽器版本過舊\n3. 記憶體不足\n\n建議嘗試：\n1. 使用電腦版 Chrome 瀏覽器\n2. 重新整理頁面\n3. 嘗試下載圖片格式 (PNG)");
+      } finally {
+        setIsDownloading(false);
       }
     }
   };
@@ -735,12 +749,42 @@ export default function App() {
         </div>
 
         {/* Download Button */}
-        <button
-          onClick={downloadPoster}
-          className="w-full py-4 bg-brand-orange hover:bg-[#d97a1e] text-white rounded-xl font-bold shadow-lg shadow-brand-orange/20 flex items-center justify-center gap-2 transition-transform active:scale-95"
-        >
-          <Download size={20} /> 下載海報 (PDF)
-        </button>
+        <div className="flex flex-col gap-2 pt-4">
+          <button
+            onClick={() => downloadPoster('pdf')}
+            disabled={isDownloading}
+            className={cn(
+              "w-full py-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95",
+              isDownloading 
+                ? "bg-gray-400 cursor-not-allowed" 
+                : "bg-brand-orange hover:bg-[#d97a1e] text-white shadow-brand-orange/20"
+            )}
+          >
+            {isDownloading ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                處理中...
+              </>
+            ) : (
+              <>
+                <Download size={20} /> 下載海報 (PDF)
+              </>
+            )}
+          </button>
+          
+          <button
+            onClick={() => downloadPoster('png')}
+            disabled={isDownloading}
+            className={cn(
+              "w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all border-2",
+              isDownloading 
+                ? "border-gray-200 text-gray-400 cursor-not-allowed" 
+                : "border-brand-orange/20 text-brand-orange hover:bg-brand-orange/5"
+            )}
+          >
+            <ImageIcon size={18} /> 下載為圖片 (PNG)
+          </button>
+        </div>
       </div>
 
       {/* Right Side: Poster Preview */}
