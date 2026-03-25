@@ -48,7 +48,7 @@ type PosterSize = 'a4' | 'a3' | 'square';
 
 // Import local logos (Ensure logo3.png is uploaded to /src)
 // Using a string to avoid build errors if the file is missing
-const logo3 = "/src/logo3.png"; 
+import logo3 from './logo3.png';
 
 const LOGO_OPTIONS = [
   { 
@@ -256,85 +256,112 @@ export default function App() {
   };
 
   const downloadPoster = async (format: 'pdf' | 'png' = 'pdf') => {
-    if (posterRef.current && !isDownloading) {
-      setIsDownloading(true);
-      try {
-        // Ensure all images are loaded before capturing
-        const images = posterRef.current.getElementsByTagName('img');
-        const loadPromises = Array.from(images).map((img: HTMLImageElement) => {
-          if (img.complete) return Promise.resolve();
-          return new Promise((resolve) => {
-            img.onload = resolve;
-            img.onerror = resolve;
-          });
+    if (!posterRef.current || isDownloading) return;
+    
+    setIsDownloading(true);
+    const originalScrollY = window.scrollY;
+    
+    try {
+      // Scroll to top to avoid html2canvas offset issues
+      window.scrollTo(0, 0);
+      
+      // Ensure all images are loaded before capturing
+      const images = posterRef.current.getElementsByTagName('img');
+      const loadPromises = Array.from(images).map((img: HTMLImageElement) => {
+        if (img.complete) return Promise.resolve();
+        return new Promise((resolve) => {
+          const timeout = setTimeout(resolve, 5000); // 5s timeout per image
+          img.onload = () => { clearTimeout(timeout); resolve(null); };
+          img.onerror = () => { clearTimeout(timeout); resolve(null); };
         });
-        
-        await Promise.all(loadPromises);
-        
-        // Add a small delay to ensure fonts and layouts are settled
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      });
+      
+      await Promise.all(loadPromises);
+      
+      // Wait for fonts and layout
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-        const canvas = await html2canvas(posterRef.current, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: false,
-          backgroundColor: '#ffffff',
-          logging: true,
-          onclone: (clonedDoc) => {
-            const clonedPoster = clonedDoc.querySelector('[data-poster="main"]');
-            if (clonedPoster instanceof HTMLElement && posterRef.current) {
-              clonedPoster.style.aspectRatio = 'auto';
-              clonedPoster.style.width = `${posterRef.current.offsetWidth}px`;
-              clonedPoster.style.height = `${posterRef.current.offsetHeight}px`;
-              clonedPoster.style.border = '12px solid #f18e2c';
-              clonedPoster.style.boxShadow = 'none';
-              clonedPoster.style.transform = 'none';
-              clonedPoster.style.position = 'relative';
-              clonedPoster.style.left = '0';
-              clonedPoster.style.top = '0';
-            }
+      const canvas = await html2canvas(posterRef.current, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: '#ffffff',
+        logging: true,
+        width: posterRef.current.offsetWidth,
+        height: posterRef.current.offsetHeight,
+        scrollX: 0,
+        scrollY: 0,
+        onclone: (clonedDoc) => {
+          const clonedPoster = clonedDoc.getElementById('poster-main-element');
+          if (clonedPoster instanceof HTMLElement) {
+            clonedPoster.style.aspectRatio = 'auto';
+            clonedPoster.style.width = `${posterRef.current?.offsetWidth}px`;
+            clonedPoster.style.height = `${posterRef.current?.offsetHeight}px`;
+            clonedPoster.style.border = '12px solid #f18e2c';
+            clonedPoster.style.boxShadow = 'none';
+            clonedPoster.style.transform = 'none';
+            clonedPoster.style.position = 'relative';
+            clonedPoster.style.left = '0';
+            clonedPoster.style.top = '0';
+            clonedPoster.style.margin = '0';
           }
-        });
-        
-        if (format === 'png') {
-          const imgData = canvas.toDataURL('image/png', 1.0);
-          const link = document.createElement('a');
-          link.href = imgData;
-          link.download = `announcement-${Date.now()}.png`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        } else {
-          const imgData = canvas.toDataURL('image/png', 1.0);
-          
-          // Create PDF with proper dimensions
-          const pdf = new jsPDF({
-            orientation: orientation === 'portrait' ? 'p' : 'l',
-            unit: 'px',
-            format: [canvas.width, canvas.height],
-            hotfixes: ["px_scaling"]
-          });
-          
-          pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-          
-          // Use blob for more reliable download in some environments
-          const pdfBlob = pdf.output('blob');
-          const url = URL.createObjectURL(pdfBlob);
+        }
+      });
+      
+      // Restore scroll position
+      window.scrollTo(0, originalScrollY);
+
+      if (format === 'png') {
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            alert("圖片生成失敗，請重試。");
+            return;
+          }
+          const url = URL.createObjectURL(blob);
           const link = document.createElement('a');
           link.href = url;
-          link.download = `announcement-${Date.now()}.pdf`;
+          link.download = `announcement-${Date.now()}.png`;
+          link.style.display = 'none';
           document.body.appendChild(link);
           link.click();
+          setTimeout(() => {
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+          }, 100);
+        }, 'image/png', 1.0);
+      } else {
+        const imgData = canvas.toDataURL('image/png', 1.0);
+        
+        const pdf = new jsPDF({
+          orientation: orientation === 'portrait' ? 'p' : 'l',
+          unit: 'px',
+          format: [canvas.width, canvas.height],
+          hotfixes: ["px_scaling"]
+        });
+        
+        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height, undefined, 'FAST');
+        
+        const pdfBlob = pdf.output('blob');
+        const url = URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `announcement-${Date.now()}.pdf`;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        
+        setTimeout(() => {
           document.body.removeChild(link);
           URL.revokeObjectURL(url);
-        }
-        
-      } catch (error) {
-        console.error("Download error:", error);
-        alert("下載失敗，可能原因：\n1. 圖片來源限制 (CORS)\n2. 瀏覽器版本過舊\n3. 記憶體不足\n\n建議嘗試：\n1. 使用電腦版 Chrome 瀏覽器\n2. 重新整理頁面\n3. 嘗試下載圖片格式 (PNG)");
-      } finally {
-        setIsDownloading(false);
+        }, 100);
       }
+      
+    } catch (error) {
+      console.error("Download error:", error);
+      window.scrollTo(0, originalScrollY);
+      alert("下載失敗。建議嘗試：\n1. 使用電腦版 Chrome 瀏覽器\n2. 重新整理頁面\n3. 嘗試下載圖片格式 (PNG)\n4. 檢查是否有阻擋彈出視窗");
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -794,6 +821,7 @@ export default function App() {
         {/* The Poster */}
         <div 
           ref={posterRef}
+          id="poster-main-element"
           data-poster="main"
           className={cn(
             "relative bg-white shadow-2xl overflow-hidden flex flex-col transition-all",
