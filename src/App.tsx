@@ -4,18 +4,16 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { GoogleGenAI } from "@google/genai";
 import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import { 
   Download, 
-  Languages, 
   Upload, 
   Type, 
   Move, 
   Maximize, 
   Minimize,
   Image as ImageIcon,
-  Loader2,
   Trash2,
   Stethoscope,
   Activity,
@@ -34,7 +32,8 @@ import {
   RotateCw,
   AlignCenter,
   AlignLeft,
-  AlignRight
+  AlignRight,
+  Languages
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -42,9 +41,6 @@ import { twMerge } from 'tailwind-merge';
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
-
-// Initialize Gemini
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 type ImagePosition = 'top' | 'center' | 'bottom' | 'background';
 type ImageFit = 'cover' | 'contain' | 'fill';
@@ -81,12 +77,100 @@ const ICON_OPTIONS = [
   { id: 'bell', icon: Bell, label: '通知' },
 ];
 
+// Dictionary for manual translation (Non-AI)
+const clinicDictionary: Record<string, string> = {
+  "休診": "Clinic Closed",
+  "公告": "Announcement",
+  "門診": "Outpatient",
+  "時間": "Hours",
+  "醫師": "Doctor",
+  "預約": "Appointment",
+  "掛號": "Registration",
+  "感冒": "Cold/Flu",
+  "疫苗": "Vaccine",
+  "健康檢查": "Health Checkup",
+  "請在此輸入公告內容": "Please enter announcement content here",
+  "顧家醫療": "Good Home Medical",
+  "通知": "Notice",
+  "提醒": "Reminder",
+  "防疫": "Epidemic Prevention",
+  "口罩": "Mask",
+  "洗手": "Hand Washing",
+  "距離": "Distance",
+  "消毒": "Disinfection",
+  "體溫": "Temperature",
+  "量測": "Measurement",
+  "正常": "Normal",
+  "發燒": "Fever",
+  "咳嗽": "Cough",
+  "急診": "Emergency",
+  "藥局": "Pharmacy",
+  "領藥": "Pick up medicine",
+  "自費": "Self-pay",
+  "健保": "Health Insurance",
+  "卡": "Card",
+  "身分證": "ID Card",
+  "健保卡": "NHI Card",
+  "居留證": "ARC",
+  "護照": "Passport",
+  "掛號費": "Registration Fee",
+  "診察費": "Consultation Fee",
+  "藥費": "Medicine Fee",
+  "檢驗": "Laboratory Test",
+  "檢查": "Examination",
+  "報告": "Report",
+  "領取": "Collect",
+  "星期一": "Monday",
+  "星期二": "Tuesday",
+  "星期三": "Wednesday",
+  "星期四": "Thursday",
+  "星期五": "Friday",
+  "星期六": "Saturday",
+  "星期日": "Sunday",
+  "上午": "Morning",
+  "下午": "Afternoon",
+  "晚上": "Evening",
+  "全天": "Full Day",
+  "休息": "Rest",
+  "國定假日": "National Holiday",
+  "春節": "Lunar New Year",
+  "端午節": "Dragon Boat Festival",
+  "中秋節": "Mid-Autumn Festival",
+  "元旦": "New Year's Day",
+  "清明節": "Tomb Sweeping Day",
+  "勞動節": "Labor Day",
+  "雙十節": "Double Tenth Day",
+  "颱風": "Typhoon",
+  "停班": "Work Suspended",
+  "停課": "Classes Suspended",
+  "正常門診": "Normal Outpatient Service",
+  "暫停門診": "Outpatient Service Suspended",
+  "造成不便": "Sorry for the inconvenience",
+  "敬請見諒": "Thank you for your understanding",
+  "謝謝合作": "Thank you for your cooperation",
+  "祝您健康": "Wish you good health",
+  "診所": "Clinic",
+  "地址": "Address",
+  "電話": "Phone",
+  "預約專線": "Appointment Line",
+  "看診": "Consultation",
+  "號碼": "Number",
+  "進度": "Progress",
+  "查詢": "Inquiry",
+  "官網": "Official Website",
+  "掃描": "Scan",
+  "加入": "Join",
+  "好友": "Friends",
+  "追蹤": "Follow",
+  "最新": "Latest",
+  "資訊": "Information",
+};
+
 export default function App() {
   const [text, setText] = useState('請在此輸入公告內容');
   const [subtitle, setSubtitle] = useState('');
   const [fontSize, setFontSize] = useState(48);
   const [subtitleFontSize, setSubtitleFontSize] = useState(24);
-  const [isTranslating, setIsTranslating] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [imagePosition, setImagePosition] = useState<ImagePosition>('center');
   const [imageSize, setImageSize] = useState(50); // percentage
@@ -144,34 +228,19 @@ export default function App() {
     };
   }, [isDraggingIcon]);
 
-  const handleTranslate = async (targetLang: string) => {
-    if (!text.trim() && !subtitle.trim()) return;
-    setIsTranslating(true);
-    try {
-      const prompt = `Translate the following announcement parts to ${targetLang}. Keep the tone professional and suitable for a medical clinic poster. 
-      Return the result as a JSON object with keys "title" and "subtitle".
-      Title: "${text}"
-      Subtitle: "${subtitle}"`;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json"
-        }
-      });
-      
-      if (response.text) {
-        const result = JSON.parse(response.text);
-        if (result.title) setText(result.title.trim());
-        if (result.subtitle) setSubtitle(result.subtitle.trim());
-      }
-    } catch (error) {
-      console.error("Translation error:", error);
-      alert("翻譯失敗，請稍後再試。");
-    } finally {
-      setIsTranslating(false);
-    }
+  const handleManualTranslate = (currentText: string, setter: (val: string) => void) => {
+    if (!currentText.trim()) return;
+    
+    let translated = currentText;
+    // Sort keys by length descending to match longer phrases first
+    const sortedKeys = Object.keys(clinicDictionary).sort((a, b) => b.length - a.length);
+    
+    sortedKeys.forEach(key => {
+      const regex = new RegExp(key, 'g');
+      translated = translated.replace(regex, clinicDictionary[key]);
+    });
+    
+    setter(translated);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -206,7 +275,7 @@ export default function App() {
         const canvas = await html2canvas(posterRef.current, {
           scale: 2,
           useCORS: true,
-          allowTaint: false, // Set to false to prevent tainted canvas
+          allowTaint: false,
           backgroundColor: '#ffffff',
           logging: false,
           onclone: (clonedDoc) => {
@@ -222,19 +291,15 @@ export default function App() {
           }
         });
         
-        // Use toBlob for better compatibility in iframes
-        canvas.toBlob((blob) => {
-          if (blob) {
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `announcement-${Date.now()}.png`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-          }
-        }, 'image/png', 1.0);
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({
+          orientation: orientation === 'portrait' ? 'p' : 'l',
+          unit: 'px',
+          format: [canvas.width, canvas.height]
+        });
+        
+        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+        pdf.save(`announcement-${Date.now()}.pdf`);
       } catch (error) {
         console.error("Download error:", error);
         alert("下載失敗，請重試。若持續失敗，請嘗試在電腦版瀏覽器開啟。");
@@ -338,9 +403,18 @@ export default function App() {
         <div className="space-y-6">
           {/* Main Title Section */}
           <div className="space-y-3 p-4 bg-brand-brown/5 rounded-2xl border border-brand-brown/10">
-            <label className="flex items-center gap-2 text-sm font-bold text-brand-brown uppercase tracking-wider">
-              <Type size={16} /> 主標題設定
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 text-sm font-bold text-brand-brown uppercase tracking-wider">
+                <Type size={16} /> 主標題設定
+              </label>
+              <button 
+                onClick={() => handleManualTranslate(text, setText)}
+                className="text-[10px] font-bold px-2 py-1 bg-brand-orange/10 text-brand-orange rounded hover:bg-brand-orange hover:text-white transition-colors flex items-center gap-1"
+                title="使用內建字典翻譯為英文"
+              >
+                <Languages size={12} /> 中翻英
+              </button>
+            </div>
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -449,9 +523,18 @@ export default function App() {
 
           {/* Subtitle Section */}
           <div className="space-y-3 p-4 bg-brand-brown/5 rounded-2xl border border-brand-brown/10">
-            <label className="flex items-center gap-2 text-sm font-bold text-brand-brown/60 uppercase tracking-wider">
-              <Type size={16} className="opacity-50" /> 副標題設定
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 text-sm font-bold text-brand-brown/60 uppercase tracking-wider">
+                <Type size={16} className="opacity-50" /> 副標題設定
+              </label>
+              <button 
+                onClick={() => handleManualTranslate(subtitle, setSubtitle)}
+                className="text-[10px] font-bold px-2 py-1 bg-brand-orange/10 text-brand-orange rounded hover:bg-brand-orange hover:text-white transition-colors flex items-center gap-1"
+                title="使用內建字典翻譯為英文"
+              >
+                <Languages size={12} /> 中翻英
+              </button>
+            </div>
             <textarea
               value={subtitle}
               onChange={(e) => setSubtitle(e.target.value)}
@@ -559,30 +642,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Translation */}
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-sm font-semibold text-brand-brown/70 uppercase tracking-wider">
-            <Languages size={16} /> 多國語言轉換
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { label: '英文', lang: 'English' },
-              { label: '日文', lang: 'Japanese' },
-              { label: '韓文', lang: 'Korean' },
-              { label: '繁中', lang: 'Traditional Chinese' }
-            ].map((item) => (
-              <button
-                key={item.lang}
-                onClick={() => handleTranslate(item.lang)}
-                disabled={isTranslating}
-                className="py-2 px-3 bg-brand-brown/5 hover:bg-brand-orange hover:text-white rounded-lg text-sm font-medium transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {isTranslating ? <Loader2 size={14} className="animate-spin" /> : item.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Image Upload */}
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm font-semibold text-brand-brown/70 uppercase tracking-wider">
@@ -663,7 +722,7 @@ export default function App() {
           onClick={downloadPoster}
           className="w-full py-4 bg-brand-orange hover:bg-[#d97a1e] text-white rounded-xl font-bold shadow-lg shadow-brand-orange/20 flex items-center justify-center gap-2 transition-transform active:scale-95"
         >
-          <Download size={20} /> 下載海報 (PNG)
+          <Download size={20} /> 下載海報 (PDF)
         </button>
       </div>
 
